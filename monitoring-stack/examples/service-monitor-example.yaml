@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: example-app
+  labels:
+    app: example-app
+    release: monitoring-stack  # Must match your Prometheus Operator release name
+spec:
+  selector:
+    matchLabels:
+      app: example-app  # These labels should match your application's service labels
+  endpoints:
+  - port: metrics       # The port name (not number) where your app exposes metrics
+    interval: 15s       # Scrape interval
+    path: /metrics      # Path where metrics are exposed
+  namespaceSelector:
+    matchNames:
+    - default           # Namespace where your application is deployed

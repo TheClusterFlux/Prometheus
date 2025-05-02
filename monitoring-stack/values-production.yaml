@@ -1,0 +1,189 @@
+# Production values for monitoring-stack Helm chart
+# Provides higher resource limits and longer retention periods
+
+kube-prometheus-stack:
+  enabled: true
+  
+  # Prometheus configuration for production
+  prometheus:
+    prometheusSpec:
+      retention: 30d  # Longer retention for production
+      resources:
+        requests:
+          memory: 2Gi
+          cpu: 500m
+        limits:
+          memory: 4Gi
+          cpu: 1000m
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: standard-immediate
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 15Gi  # More storage for production
+      replicas: 1  # Single Prometheus instance
+      
+      # Security context with less restrictive permissions
+      securityContext:
+        fsGroup: 65534  # nobody group
+        runAsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+        
+      # Fix for the query log permission issue
+      initContainers:
+        - name: init-chmod-data
+          image: busybox:1.31.1
+          command: 
+            - sh
+            - -c
+            - |
+              mkdir -p /prometheus/queries.active && chmod -R 777 /prometheus && touch /prometheus/queries.active && chmod 666 /prometheus/queries.active
+          volumeMounts:
+            - name: prometheus-monitoring-stack-kube-prom-prometheus-db
+              mountPath: /prometheus
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+  
+  # Configure Grafana within kube-prometheus-stack
+  grafana:
+    enabled: true
+    adminPassword: "BannaBread4Life"  # Secure password set directly
+    persistence:
+      enabled: true
+      size: 5Gi
+      storageClassName: standard-immediate
+    
+    # Disable the datasource sidecar to avoid the conflict
+    sidecar:
+      datasources:
+        enabled: false
+    
+    # Remove extraInitContainers that might be causing permission issues
+    extraInitContainers: []
+    
+    # Define datasources directly
+    datasources:
+      datasources.yaml:
+        apiVersion: 1
+        datasources:
+          - name: Prometheus
+            type: prometheus
+            url: http://monitoring-stack-kube-prom-prometheus.monitoring:9090
+            access: proxy
+            isDefault: true
+          - name: Alertmanager
+            type: alertmanager
+            url: http://monitoring-stack-kube-prom-alertmanager.monitoring:9093
+            access: proxy
+            jsonData:
+              implementation: prometheus
+    
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 1Gi
+        cpu: 500m
+    
+  # AlertManager configuration for production
+  alertmanager:
+    alertmanagerSpec:
+      storage:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: standard-immediate
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 2Gi
+      replicas: 1
+
+# Loki stack for production
+loki-stack:
+  enabled: true
+  
+  # Loki configuration for production
+  loki:
+    persistence:
+      enabled: true
+      size: 8Gi
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: standard-immediate
+    securityContext:
+      fsGroup: 10001
+      runAsGroup: 10001
+      runAsUser: 10001
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: 200m
+      limits:
+        memory: 1.5Gi
+        cpu: 500m
+
+# Default namespace monitoring - production settings
+defaultNamespaceMonitor:
+  enabled: true
+  scrapeInterval: 15s  # More frequent scraping in production
+  metricsPaths:
+    - name: metrics
+      path: /metrics
+    - name: http
+      path: /metrics
+    - name: prometheus
+      path: /metrics
+    - name: web
+      path: /metrics
+
+# Ingress configurations for production
+ingress:
+  # Grafana Ingress
+  grafana:
+    enabled: true  # Enabled by default for production
+    className: "nginx"
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      # Security-related annotations
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      # TLS with cert-manager
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    hosts:
+      - host: grafana.theclusterflux.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - grafana.theclusterflux.com
+
+  # Prometheus Ingress with basic authentication for security
+  prometheus:
+    enabled: true  # Enabled by default for production
+    className: "nginx"
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      # Security-related annotations
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      # Basic authentication for Prometheus UI access
+      nginx.ingress.kubernetes.io/auth-type: basic
+      nginx.ingress.kubernetes.io/auth-secret: prometheus-basic-auth
+      nginx.ingress.kubernetes.io/auth-realm: "Authentication Required for Prometheus"
+      # TLS with cert-manager
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    hosts:
+      - host: prometheus.theclusterflux.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: prometheus-tls
+        hosts:
+          - prometheus.theclusterflux.com

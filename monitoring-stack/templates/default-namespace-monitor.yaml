@@ -1,0 +1,32 @@
+{{- if .Values.defaultNamespaceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Release.Name }}-default-namespace
+  namespace: {{ .Release.Namespace | default "monitoring" }}
+  labels:
+    app.kubernetes.io/name: default-namespace-monitor
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    release: {{ .Release.Name }} # Important: must match Prometheus Operator release selector
+spec:
+  jobLabel: kubernetes-default-services
+  selector:
+    matchLabels: {} # Empty matchLabels will select all services that have any labels
+  namespaceSelector:
+    matchNames:
+      - default
+  endpoints:
+    {{- range .Values.defaultNamespaceMonitor.metricsPaths }}
+    - port: {{ .name }} # Will target any port with this name
+      interval: {{ $.Values.defaultNamespaceMonitor.scrapeInterval }}
+      path: {{ .path }}
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_service_name]
+          targetLabel: service
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_pod_container_name]
+          targetLabel: container
+    {{- end }}
+{{- end }}

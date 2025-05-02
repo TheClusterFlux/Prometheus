@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: prometheus-pv
+  labels:
+    type: local
+    app: prometheus
+    pvc-name: prometheus-monitoring-stack-kube-prom-prometheus-db-prometheus-monitoring-stack-kube-prom-prometheus-0
+spec:
+  storageClassName: standard-immediate
+  capacity:
+    storage: 15Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: "/mnt/data/prometheus"
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: grafana-pv
+  labels:
+    type: local
+    app: grafana
+    pvc-name: monitoring-stack-grafana
+spec:
+  storageClassName: standard-immediate
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: "/mnt/data/grafana"
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: alertmanager-pv
+  labels:
+    type: local
+    app: alertmanager
+    pvc-name: alertmanager-monitoring-stack-kube-prom-alertmanager-db-alertmanager-monitoring-stack-kube-prom-alertmanager-0
+spec:
+  storageClassName: standard-immediate
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: "/mnt/data/alertmanager"
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: loki-pv
+  labels:
+    type: local
+    app: loki
+    pvc-name: storage-monitoring-stack-loki-0
+spec:
+  storageClassName: standard-immediate
+  capacity:
+    storage: 8Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: "/mnt/data/loki"
