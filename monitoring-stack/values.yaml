@@ -184,6 +184,9 @@ loki-stack:
   # Configure Promtail
   promtail:
     enabled: true
+    config:
+      clients:
+      - url: http://monitoring-stack-loki.monitoring:3100/loki/api/v1/push
     
   # Add Loki as a datasource to Grafana
   grafana:

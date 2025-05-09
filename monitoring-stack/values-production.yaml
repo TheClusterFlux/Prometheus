@@ -81,6 +81,11 @@ kube-prometheus-stack:
             access: proxy
             jsonData:
               implementation: prometheus
+          - name: Loki
+            type: loki
+            url: http://monitoring-stack-loki.monitoring:3100
+            access: proxy
+            editable: true
     
     resources:
       requests:
@@ -125,6 +130,13 @@ loki-stack:
       limits:
         memory: 1.5Gi
         cpu: 500m
+
+# Promtail configuration for production
+promtail:
+  enabled: true
+  config:
+    clients:
+    - url: http://monitoring-stack-loki.monitoring:3100/loki/api/v1/push
 
 # Default namespace monitoring - production settings
 defaultNamespaceMonitor:
